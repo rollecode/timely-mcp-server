@@ -95,6 +95,17 @@ async function api(
   return res.json();
 }
 
+// The authenticated user's ID, resolved once and cached for the process lifetime.
+let currentUserId: number | undefined;
+
+async function getCurrentUserId(): Promise<number> {
+  if (currentUserId === undefined) {
+    const user = (await api("/users/current")) as { id: number };
+    currentUserId = user.id;
+  }
+  return currentUserId;
+}
+
 const server = new McpServer({
   name: "timely",
   version: "1.0.0",
@@ -162,18 +173,20 @@ server.tool(
 // List events (time entries)
 server.tool(
   "timely_list_events",
-  "List time entries. Defaults to today if no dates given.",
+  "List time entries. Defaults to today and to your own entries. For admins, the account-wide view returns every user's entries, so this defaults user_id to the authenticated user. Pass user_id to target another person, or all_users:true for the whole account.",
   {
     since: z.string().optional().describe("Start date YYYY-MM-DD"),
     upto: z.string().optional().describe("End date YYYY-MM-DD"),
-    user_id: z.number().optional().describe("Filter by user ID"),
+    user_id: z.number().optional().describe("Filter by user ID. Defaults to the authenticated user when omitted."),
     project_id: z.number().optional().describe("Filter by project ID"),
+    all_users: z.boolean().optional().describe("Admins only: return entries for every user in the account instead of just one. Overrides user_id."),
   },
-  async ({ since, upto, user_id, project_id }) => {
+  async ({ since, upto, user_id, project_id, all_users }) => {
     const params = new URLSearchParams();
     if (since) params.set("since", since);
     if (upto) params.set("upto", upto);
-    if (user_id) params.set("user_id", String(user_id));
+    const effectiveUserId = all_users ? undefined : user_id ?? (await getCurrentUserId());
+    if (effectiveUserId !== undefined) params.set("user_id", String(effectiveUserId));
     if (project_id) params.set("project_id", String(project_id));
     const query = params.toString();
     const data = await api(`/events${query ? `?${query}` : ""}`);
