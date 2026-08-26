@@ -3,3 +3,6 @@ node_modules/
 .tokens.json
 .localhost.pem
 .localhost-key.pem
+timely-mcp.service
+timely-mcp-auth.service
+timely-mcp.conf
