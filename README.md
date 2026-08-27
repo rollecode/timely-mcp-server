@@ -5,8 +5,7 @@
 Timely MCP server
 
 <img style="justify-content:center;text-align: center;width: 95px; height: auto;" width="793" height="411" alt="image" src="https://github.com/user-attachments/assets/abed1a04-d69b-4ab4-a490-d606064df72d" />
-<img style="justify-content:center;text-align: center;width: 190px; height: auto;" alt="image" src="https://timely.com/cdn/timely_logo.svg" />
-
+<img style="justify-content:center;text-align: center;width: 190px; height: auto;" alt="image" src="https://github.com/user-attachments/assets/14a10692-00e0-420a-bcf7-0485f3c7239d" />
 </h1>
 
 ![Version](https://img.shields.io/badge/version-2.0.0-7c5cfc.svg?style=for-the-badge) ![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white) ![Node](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white) ![OAuth](https://img.shields.io/badge/OAuth_2.1-EB5424?style=for-the-badge&logo=auth0&logoColor=white)
