@@ -8,7 +8,7 @@ Timely MCP server
 <img style="justify-content:center;text-align: center;width: 190px; height: auto;" alt="image" src="https://github.com/user-attachments/assets/14a10692-00e0-420a-bcf7-0485f3c7239d" />
 </h1>
 
-![Version](https://img.shields.io/badge/version-2.0.0-7c5cfc.svg?style=for-the-badge) ![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white) ![Node](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white) ![OAuth](https://img.shields.io/badge/OAuth_2.1-EB5424?style=for-the-badge&logo=auth0&logoColor=white)
+![Version](https://img.shields.io/badge/version-2.1.0-7c5cfc.svg?style=for-the-badge) ![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white) ![Node](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white) ![OAuth](https://img.shields.io/badge/OAuth_2.1-EB5424?style=for-the-badge&logo=auth0&logoColor=white)
 
 </div>
 </center>
@@ -25,18 +25,21 @@ Read and write your [Timely](https://www.timely.com) time tracking from Claude.a
 
 | Tool | What you get |
 | --- | --- |
-| `timely_me` | The signed-in user and reachable accounts |
-| `timely_account` | Account settings: currency, week start, capacity |
+| `timely_me` | Reachable accounts, and which one the server acts on |
+| `timely_account` | Account settings: currency, week start, capacity, default rate |
 | `timely_list_users` / `timely_get_user` | People, with rates, capacity and role |
+| `timely_user_capacities` | A person's contracted hours, and when each applied |
 | `timely_list_teams` | Teams and their members |
 | `timely_list_roles` | Roles and what each may do |
 | `timely_list_clients` / `timely_get_client` | Clients, active and archived |
 | `timely_list_projects` / `timely_get_project` | Projects with budget and rate |
+| `timely_project_rates` | What a project charges against what its people cost |
 | `timely_list_labels` / `timely_get_label` | Labels and their nesting |
-| `timely_list_events` / `timely_get_event` | Logged time, filtered by day, user or project |
+| `timely_list_events` / `timely_get_event` | Logged time, by day, person, project, label or billing state |
 | `timely_user_events` | One person's entries over a period |
 | `timely_list_forecasts` / `timely_get_forecast` | Planned work |
 | `timely_report` | Totals for a period, grouped and filtered |
+| `timely_unrated_work` | Projects billing hours at no rate |
 | `timely_list_reports` | Saved reports |
 | `timely_activities` | Recent account activity |
 | `timely_list_webhooks` | Registered webhooks |
@@ -48,23 +51,49 @@ Read and write your [Timely](https://www.timely.com) time tracking from Claude.a
 | `timely_create_event` | Log time to a project |
 | `timely_update_event` | Change hours, note, labels or day |
 | `timely_delete_event` | Delete a time entry |
+| `timely_set_events_billable` | Flip billable across a whole project or period at once |
 | `timely_create_client` / `timely_update_client` | Add or change a client |
-| `timely_create_project` / `timely_update_project` | Add or change a project |
+| `timely_create_project` / `timely_update_project` / `timely_delete_project` | Add, change or remove a project |
+| `timely_update_user` | Set a person's charge-out and internal rates |
 | `timely_create_label` / `timely_update_label` / `timely_delete_label` | Manage labels |
 | `timely_create_forecast` / `timely_update_forecast` / `timely_delete_forecast` | Manage planned work |
 | `timely_create_webhook` / `timely_delete_webhook` | Manage webhooks |
 
 Every update is a patch: only what you pass changes, so a rename never blanks the other fields.
 
+Writes are checked against what Timely returns. Timely answers `200` for a field it silently drops, so a rate that did not land now raises an error instead of reporting a success that never happened.
+
+### Rates and billing
+
+A project charges in one of three ways, set with `rate_type`: `project` bills every hour at the project rate, `user` bills each person at their own rate, and `non-billable` bills nothing. Timely refuses to create a project without one.
+
+`timely_project_rates` puts the charge-out rate next to what each person costs, which is the difference the reports call profit:
+
+```json
+{"user_id": 20991, "charged": 105, "costs": 87.17, "margin_per_hour": 17.83}
+```
+
+If profit looks wrong everywhere, check `timely_get_user`: when `default_hour_rate` equals `internal_hour_rate` every hour breaks even by construction. `timely_update_user` sets them apart.
+
+`timely_unrated_work` lists projects that logged billable hours and earned nothing, with the reason for each. `timely_set_events_billable` fixes entries in bulk; Timely has no bulk endpoint, so it updates each entry in turn and leaves invoiced or locked ones alone. Preview with `dry_run: true`.
+
+### Budgets
+
+`budget_type` takes `hours` or `fees`. Timely's own API wants the letters `H` and `M` and rejects the words its docs use, so the tools take the word and send the letter.
+
 ### Reports
 
-`timely_report` returns totals grouped by client, user, label and day. It summarises by default, because a month across an account is hundreds of kilobytes of repeated duration and cost objects, which is rarely what a summary needs:
+`timely_report` returns totals grouped by client, user, label, team and day. It summarises by default, because a month across an account is hundreds of kilobytes of repeated duration and cost objects, which is rarely what a summary needs:
 
 ```json
 {"since": "2026-08-01", "upto": "2026-08-31"}
 ```
 
-Pass `detail: true` for every underlying entry.
+Each row carries hours split by billable and invoiced state, revenue, internal cost and profit, so what was earned and what it cost sit side by side. Pass `detail: true` for every underlying entry.
+
+### Filtering time entries
+
+Timely's own `/events` endpoint accepts `project_ids`, `user_ids`, `label_ids` and `billable` and then ignores them, answering `200` with the entire account. `timely_list_events` reads through the routes that do filter and applies the rest itself, so asking for one person's hours returns one person's hours. Note it takes `per_page`, not `limit`, which Timely ignores here.
 
 ## How it fits together
 
