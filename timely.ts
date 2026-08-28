@@ -70,8 +70,12 @@ async function refreshToken(): Promise<string> {
   return fresh.access_token;
 }
 
-function buildUrl(path: string, query?: Record<string, unknown>): string {
-  const url = new URL(`${TIMELY_BASE}/${ACCOUNT_ID}${path}`);
+/** Account-scoped paths sit under the account id; a few live at the API root. */
+export type Scope = "account" | "root";
+
+function buildUrl(path: string, query?: Record<string, unknown>, scope: Scope = "account"): string {
+  const prefix = scope === "root" ? TIMELY_BASE : `${TIMELY_BASE}/${ACCOUNT_ID}`;
+  const url = new URL(`${prefix}${path}`);
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value === undefined || value === null) {
       continue;
@@ -85,11 +89,12 @@ export interface ApiOptions {
   method?: string;
   body?: unknown;
   query?: Record<string, unknown>;
+  scope?: Scope;
 }
 
 /** Call the Timely API, refreshing the access token once if it has expired. */
 export async function api(path: string, options: ApiOptions = {}): Promise<unknown> {
-  const url = buildUrl(path, options.query);
+  const url = buildUrl(path, options.query, options.scope);
 
   const send = (token: string) =>
     fetch(url, {
