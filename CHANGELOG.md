@@ -1,3 +1,8 @@
+### 2.2.0: 2026-10-02
+
+* Page results larger than 20 000 tokens
+* Add get_result_page to page, filter and narrow them
+
 ### 2.1.0: 2026-08-28
 
 * Fix `timely_me` and `timely_account` returning 404

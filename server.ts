@@ -2,11 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
+import { fit, registerPaging } from "./paging.ts";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { api, accountId } from "./timely.ts";
 
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 const DEFAULT_PORT = 8450;
 const LOCAL_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 
@@ -41,9 +42,10 @@ function buildServer(): McpServer {
       "which has a dry_run.",
   },
 );
+registerPaging(server);
 
 const text = (data: unknown) => ({
-  content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+  content: [{ type: "text" as const, text: fit(data) }],
 });
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
