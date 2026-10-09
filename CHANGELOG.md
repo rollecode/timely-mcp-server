@@ -1,3 +1,8 @@
+### 2.2.1: 2026-10-09
+
+* Filter `timely_report` by client through its projects
+* Keep HTML error pages out of tool errors
+
 ### 2.2.0: 2026-10-02
 
 * Page results larger than 20 000 tokens

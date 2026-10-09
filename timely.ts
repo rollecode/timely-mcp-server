@@ -112,7 +112,9 @@ export async function api(path: string, options: ApiOptions = {}): Promise<unkno
   }
 
   if (!res.ok) {
-    throw new Error(`Timely API ${res.status}: ${await res.text()}`);
+    // A gateway error is a whole HTML page; the status says all of it.
+    const body = await res.text();
+    throw new Error(`Timely API ${res.status}: ${body.trimStart().startsWith("<") ? res.statusText : body.slice(0, 500)}`);
   }
 
   return res.status === 204 ? { ok: true } : res.json();

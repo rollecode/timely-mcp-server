@@ -813,7 +813,18 @@ server.tool(
       ),
   },
   READ_ONLY,
-  async ({ detail, ...fields }) => {
+  async ({ detail, client_ids, ...fields }) => {
+    // Timely's report ignores client_ids and returns the whole account, which
+    // times out over long periods; filter by the clients' projects instead.
+    if (client_ids?.length) {
+      const projects = (await api("/projects", { query: { filter: "all" } })) as {
+        id: number;
+        client?: { id: number };
+      }[];
+      const owned = projects.filter((p) => p.client && client_ids.includes(p.client.id)).map((p) => p.id);
+      fields.project_ids = fields.project_ids ? fields.project_ids.filter((id) => owned.includes(id)) : owned;
+      if (!fields.project_ids.length) return text({ totals: null, note: "These clients have no projects in that selection." });
+    }
     const report = (await api("/reports/filter", {
       method: "POST",
       body: present(fields),
